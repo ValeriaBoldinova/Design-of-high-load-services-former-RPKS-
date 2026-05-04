@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  postgres_lab1:
+    image: postgres:15
+    container_name: postgres_lab1
+    environment:
+      POSTGRES_DB: lab1_snowflake
+      POSTGRES_USER: lab1_user
+      POSTGRES_PASSWORD: lab1_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - lab1_pgdata:/var/lib/postgresql/data
+      - ./исходные данные:/data:ro
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+
+volumes:
+  lab1_pgdata:
+    name: lab1_pgdata
