@@ -1,0 +1,100 @@
+version: '3.8'
+
+networks:
+  lab2_net:
+    driver: bridge
+
+services:
+
+  postgres:
+    image: postgres:15
+    container_name: lab2_postgres
+
+    environment:
+      POSTGRES_USER: spark
+      POSTGRES_PASSWORD: spark
+      POSTGRES_DB: lab2
+
+    ports:
+      - "5435:5432"
+
+    volumes:
+      # SQL ТОЛЬКО для PostgreSQL
+      - ./postgres_init:/docker-entrypoint-initdb.d:ro
+
+      # CSV данные
+      - ./исходные данные:/data/csv:ro
+
+      # volume БД
+      - lab2_pg_data:/var/lib/postgresql/data
+
+    networks:
+      - lab2_net
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spark -d lab2"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: lab2_clickhouse
+
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+
+    volumes:
+      # volume ClickHouse
+      - lab2_ch_data:/var/lib/clickhouse
+
+      # SQL ТОЛЬКО для ClickHouse
+      - ./clickhouse_init:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - lab2_net
+
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  spark:
+    image: apache/spark:latest
+    container_name: lab2_spark
+
+    command: ["tail", "-f", "/dev/null"]
+
+    ports:
+      - "8090:8080"
+      - "7077:7077"
+
+    volumes:
+      - ./spark:/opt/spark-apps
+      - ./jars:/opt/spark-jars
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+    networks:
+      - lab2_net
+
+volumes:
+  lab2_pg_data:
+  lab2_ch_data:
